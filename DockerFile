@@ -1,0 +1,39 @@
+# --- 階段 1: 編譯 (Builder) ---
+FROM rust:1.75-slim as builder
+
+# 安裝編譯所需的系統依賴 (Protobuf 需要 protoc)
+RUN apt-get update && apt-get install -y \
+    protobuf-compiler \
+    libssl-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/app
+COPY . .
+
+# 編譯專案 (使用 Release 模式)
+RUN cargo build --release
+
+# --- 階段 2: 執行 (Runtime) ---
+FROM debian:bookworm-slim
+
+# 安裝運行時需要的工具：yt-dlp 與 ffmpeg (用於轉檔)
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    python3 \
+    ffmpeg \
+    curl \
+    && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+    && chmod a+rx /usr/local/bin/yt-dlp \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# 從編譯階段拷貝編譯好的執行檔
+COPY --from=builder /usr/src/app/target/release/service-ytdlp /app/service-ytdlp
+
+# 暴露 gRPC 預設連接埠 (假設你設定為 50051)
+EXPOSE 50051
+
+# 啟動微服務
+CMD ["./service-ytdlp"]
