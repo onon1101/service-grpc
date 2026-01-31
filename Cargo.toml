@@ -1,0 +1,21 @@
+[package]
+name = "service-ytdlp"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+async-trait = "0.1"
+tonic = "0.10"
+prost = "0.12"
+tokio = { version = "1", features = ["full"]}
+tokio-stream = { version="0.1", features = ["net"] }
+reqwest = { version = "0.11", features = ["blocking", "json"]}
+serde = { version = "1.0", features = ["derive"]}
+serde_json = "1.0"
+regex = "1"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.22"
+anyhow = "1.0.100"
+
+[build-dependencies]
+tonic-build = "0.10"

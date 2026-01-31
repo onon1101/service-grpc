@@ -1,0 +1,19 @@
+syntax = "proto3";
+package video;
+
+service VideoService {
+    rpc DownloadAndStream (DownloadRequest) returns (stream DownloadResponse);
+}
+
+message DownloadRequest {
+    string url = 1;
+}
+
+message DownloadResponse {
+    oneof payload {
+        int32 progress = 1;
+        bytes file_chunk = 2;
+        string error_mes = 3;
+    }
+    string filename = 4;
+}
