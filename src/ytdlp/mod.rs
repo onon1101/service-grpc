@@ -25,7 +25,7 @@ pub async fn run(
 
     // 如果不存在或者版本不同步就更新
     if local_version_wrapped.as_ref() != Some(&lastest_version) {
-        if (local_version_wrapped.is_some()) {
+        if local_version_wrapped.is_some() {
             let local_version = local_version_wrapped.unwrap();
 
             info!("偵測到 yt-dlp 版本更新。{} -> {}", local_version, lastest_version);

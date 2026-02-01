@@ -3,7 +3,7 @@ use crate::downloader::download_response::Payload;
 use crate::downloader::DownloadResponse;
 use crate::ytdlp;
 use anyhow::{anyhow, Context, Result};
-use tracing::{info, error};
+use tracing::{info};
 
 pub async fn download_and_cleanup(
     url: String,

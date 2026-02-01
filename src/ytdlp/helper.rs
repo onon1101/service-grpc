@@ -9,7 +9,7 @@ use tokio::io::AsyncReadExt;
 use tonic::Status;
 use tracing::{error, info};
 use crate::downloader::download_response::Payload;
-use crate::downloader::DownloadResponse;
+use crate::downloader::{download_response, DownloadResponse};
 
 #[cfg(windows)]
 pub const YT_DLP_URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
@@ -18,11 +18,11 @@ pub const YT_DLP_URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/d
 pub const YT_DLP_URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp";
 
 pub async fn check_for_update() -> Result<String> {
-    const github_repo: &str = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest";
+    const GITHUB_REPO: &str = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest";
     let client = reqwest::Client::new();
 
     let response = client
-        .get(github_repo)
+        .get(GITHUB_REPO)
         .header("User-Agent", "rust_downloader")
         .send()
         .await?;
@@ -105,8 +105,8 @@ pub fn cleanup_old_version(old_filename: &str) {
 }
 
 pub async fn download_yt_dlp(filename: &String) -> Result<(), Box<dyn std::error::Error>> {
-    let filenameStr: &str = filename.as_str();
-    let path = Path::new(filenameStr);
+    let filename_str: &str = filename.as_str();
+    let path = Path::new(filename_str);
     if path.exists() {
         println!("yt-dlp 已存在。");
         return Ok(());
@@ -114,7 +114,7 @@ pub async fn download_yt_dlp(filename: &String) -> Result<(), Box<dyn std::error
 
     println!("🚀 正在從 GitHub 下載最新的 yt-dlp...");
     let response = reqwest::get(YT_DLP_URL).await?;
-    let mut file = File::create(filenameStr)?;
+    let mut file = File::create(filename_str)?;
     let mut content = Cursor::new(response.bytes().await?);
     io::copy(&mut content, &mut file)?;
 
@@ -154,14 +154,14 @@ pub async fn start_download_video(
     url: &String,
     tx: &tokio::sync::mpsc::Sender<std::result::Result<DownloadResponse, Status>>
 ) -> Result<String> {
-    let mut child = Command::new(format!("./{}", &filename))
+    let mut child = tokio::process::Command::new(format!("./{}", &filename))
         .args(["-f", "bv+ba/b"])
         .args(["-S", "br,res,fps"])
         .args(["--merge-output-format", "mp4"])
         .arg(url)
         .spawn()?;
 
-    let status = child.wait()?;
+    let status = child.wait().await?;
 
     let videos = get_mp4_filenames()
         .await?;
@@ -175,14 +175,31 @@ pub async fn start_download_video(
         .next()
         .ok_or_else(|| anyhow!("Videos iter 發生問題"))?;
 
+    let mut last_progress = -1;
     if status.success() {
+
+        // initialize value
         let mut file = tokio::fs::File::open(&video_filename).await?;
+        let total_size = file.metadata()
+            .await?
+            .len() as f64;
+        let mut sent_size = 0f64;
         let mut buffer = [0u8; 64 * 1024];
 
+        // starting transfer
         while let Ok(n) = file.read(&mut buffer).await {
-            if n == 0 {
-                break;
+            if n == 0 { break; }
+
+            sent_size += n as f64;
+            let current_progress = ((sent_size / total_size) * 100.0) as i32;
+            if current_progress > last_progress {
+                tx.send(Ok(DownloadResponse {
+                    payload: Some(download_response::Payload::Progress(current_progress)),
+                    filename: filename.clone(),
+                })).await?;
+                last_progress = current_progress;
             }
+
             let _ = tx
                 .send(Ok(DownloadResponse {
                     filename: filename.clone(),
