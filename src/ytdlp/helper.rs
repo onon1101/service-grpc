@@ -121,9 +121,9 @@ pub async fn download_yt_dlp(filename: &String) -> Result<(), Box<dyn std::error
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(filenameStr)?.permissions();
+        let mut perms = fs::metadata(filename_str)?.permissions();
         perms.set_mode(0o755); // 賦予執行權限
-        fs::set_permissions(filenameStr, perms)?;
+        fs::set_permissions(filename_str, perms)?;
     }
 
     println!("✅ 下載成功並已設定權限。");
