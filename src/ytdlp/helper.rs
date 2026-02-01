@@ -195,14 +195,14 @@ pub async fn start_download_video(
             if current_progress > last_progress {
                 tx.send(Ok(DownloadResponse {
                     payload: Some(download_response::Payload::Progress(current_progress)),
-                    filename: filename.clone(),
+                    filename: video_filename.clone(),
                 })).await?;
                 last_progress = current_progress;
             }
 
             let _ = tx
                 .send(Ok(DownloadResponse {
-                    filename: filename.clone(),
+                    filename: video_filename.clone(),
                     payload: Some(Payload::FileChunk(buffer[..n].to_vec())),
                 }))
                 .await;
